@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "uuid": "^11.0.4"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
