@@ -48,8 +48,8 @@ const JobQueueDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       const [metricsRes, jobsRes] = await Promise.all([
-        fetch("/api/metrics"),
-        fetch("/api/jobs"),
+        fetch(`${import.meta.env.VITE_PUBLIC_API_URL}/api/metrics`),
+        fetch(`${import.meta.env.VITE_PUBLIC_API_URL}/api/jobs`),
       ]);
 
       if (!metricsRes.ok || !jobsRes.ok) {
@@ -65,6 +65,7 @@ const JobQueueDashboard: React.FC = () => {
       setJobs(jobsData);
       setError(null);
     } catch (err) {
+      console.log(err);
       setError("Failed to fetch dashboard data");
     } finally {
       setLoading(false);
@@ -164,7 +165,12 @@ const JobQueueDashboard: React.FC = () => {
           <span className="text-lg font-bold">Queue Metrics Over Time</span>
         </div>
         <div className="card-content">
-          <LineChart width={800} height={300} data={metrics.history}>
+          <LineChart
+            className="w-full"
+            width={1050}
+            height={300}
+            data={metrics.history}
+          >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="timestamp" />
             <YAxis />
@@ -191,40 +197,48 @@ const JobQueueDashboard: React.FC = () => {
         </div>
         <div className="card-content">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border">
               <thead>
                 <tr className="text-left border-b">
-                  <th className="p-3 text-sm font-medium text-gray-500">ID</th>
-                  <th className="p-3 text-sm font-medium text-gray-500">Type</th>
-                  <th className="p-3 text-sm font-medium text-gray-500">
+                  <th className="p-3 text-sm font-medium text-gray-500 border text-center">
+                    ID
+                  </th>
+                  <th className="p-3 text-sm font-medium text-gray-500 border text-center">
+                    Type
+                  </th>
+                  <th className="p-3 text-sm font-medium text-gray-500 border text-center">
                     Status
                   </th>
-                  <th className="p-3 text-sm font-medium text-gray-500">
+                  <th className="p-3 text-sm font-medium text-gray-500 border text-center">
                     Priority
                   </th>
-                  <th className="p-3 text-sm font-medium text-gray-500">
+                  <th className="p-3 text-sm font-medium text-gray-500 border text-center">
                     Progress
                   </th>
-                  <th className="p-3 text-sm font-medium text-gray-500">
+                  <th className="p-3 text-sm font-medium text-gray-500 border text-center">
                     Created
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {jobs.map((job) => (
+                {jobs?.map((job) => (
                   <tr key={job.id}>
-                    <td className="p-3 text-sm">{job.id}</td>
-                    <td className="p-3 text-sm">{job.type}</td>
-                    <td className="p-3">
+                    <td className="p-3 text-sm border text-center">{job.id}</td>
+                    <td className="p-3 text-sm border text-center">
+                      {job.type}
+                    </td>
+                    <td className="p-3 border text-center">
                       <span className={getStatusBadgeClass(job.status)}>
                         {job.status}
                       </span>
                     </td>
-                    <td className="p-3 text-sm">{job.priority}</td>
-                    <td className="p-3 text-sm">
+                    <td className="p-3 text-sm border text-center">
+                      {job.priority}
+                    </td>
+                    <td className="p-3 text-sm border text-center">
                       {job.progress ? `${job.progress}%` : "-"}
                     </td>
-                    <td className="p-3 text-sm">
+                    <td className="p-3 text-sm border text-center">
                       {new Date(job.createdAt).toLocaleString()}
                     </td>
                   </tr>

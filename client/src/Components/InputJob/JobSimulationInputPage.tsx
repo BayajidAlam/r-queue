@@ -12,11 +12,12 @@ import { Button } from "../../components/ui/button";
 
 const JobSimulationPage = () => {
   const [formData, setFormData] = useState({
-    jobType: "email",
+    type: "email",
+    data: "",
+    priority: "MEDIUM",
+    dependencies: "",
     processingTime: 10,
     shouldFail: false,
-    priority: "MEDIUM",
-    data: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -30,11 +31,17 @@ const JobSimulationPage = () => {
     setResult(null);
 
     try {
-      const response = await fetch("/api/jobs/simulate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_PUBLIC_API_URL}/api/jobs`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            dependencies: formData.dependencies.split(',').map(dep => dep.trim())
+          }),
+        }
+      );
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
@@ -47,20 +54,20 @@ const JobSimulationPage = () => {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-4 max-w-md mx-auto">
       <Card>
         <CardHeader>
           <CardTitle>Job Simulation</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="block text-sm font-medium mb-1">Job Type</label>
               <select
-                className="w-full p-2 border rounded"
-                value={formData.jobType}
+                className="w-full p-1 border rounded"
+                value={formData.type}
                 onChange={(e) =>
-                  setFormData({ ...formData, jobType: e.target.value })
+                  setFormData({ ...formData, type: e.target.value })
                 }
               >
                 <option value="email">Send Email</option>
@@ -85,13 +92,14 @@ const JobSimulationPage = () => {
                     processingTime: parseInt(e.target.value),
                   })
                 }
+                className="p-1"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-1">Priority</label>
               <select
-                className="w-full p-2 border rounded"
+                className="w-full p-1 border rounded"
                 value={formData.priority}
                 onChange={(e) =>
                   setFormData({ ...formData, priority: e.target.value })
@@ -108,12 +116,27 @@ const JobSimulationPage = () => {
                 Job Data (JSON)
               </label>
               <textarea
-                className="w-full p-2 border rounded h-24"
+                className="w-full p-1 border rounded h-12"
                 value={formData.data}
                 onChange={(e) =>
                   setFormData({ ...formData, data: e.target.value })
                 }
                 placeholder='{"key": "value"}'
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Dependencies (comma-separated job IDs)
+              </label>
+              <Input
+                type="text"
+                value={formData.dependencies}
+                onChange={(e) =>
+                  setFormData({ ...formData, dependencies: e.target.value })
+                }
+                placeholder="jobId1, jobId2"
+                className="p-1"
               />
             </div>
 

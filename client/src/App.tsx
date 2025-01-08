@@ -1,6 +1,6 @@
 import "./App.css";
-import JobSimulationPage from "./pages/InputJob/JobSimulationInputPage";
-import JobQueueDashboard from "./pages/JobQueueDashboard/JobQueueDashboard";
+import JobSimulationPage from "./Components/InputJob/JobSimulationInputPage";
+import JobQueueDashboard from "./Components/JobQueueDashboard/JobQueueDashboard";
 
 function App() {
   return (
