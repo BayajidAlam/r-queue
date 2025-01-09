@@ -1,15 +1,17 @@
+import express from 'express';
+import { JobQueue } from '../../services/JobQueue';
+import { createRedisClient } from '../../config/redis';
+
+const router = express.Router();
+const queue = new JobQueue(createRedisClient());
+
 router.get('/metrics', async (req, res) => {
   try {
-    const metrics = {
-      queueLength: await queue.getQueueLength(),
-      processingJobs: await queue.getProcessingCount(),
-      completedJobs: await queue.getCompletedCount(),
-      failedJobs: await queue.getFailedCount(),
-      workers: await queue.getWorkerStatus()
-    };
+    const metrics = await queue.getMetrics();
     res.json(metrics);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const err = error as Error;
+    res.status(500).json({ error: err.message });
   }
 });
 

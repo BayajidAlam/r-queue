@@ -4,3 +4,9 @@
 **/.env
 **/.env.local
 **/.env.*.local
+
+# Ignore Redis data directories
+server/redis-cluster/*/data/
+
+# Ignore specific Redis dump files
+server/redis-cluster/*/data/dump.rdb
