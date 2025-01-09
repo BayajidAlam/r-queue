@@ -6,7 +6,7 @@ const PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'];
 
 interface SimulationConfig {
   totalJobs: number;
-  duration: number;  // in seconds
+  duration: number;  
   batchSize?: number;
 }
 

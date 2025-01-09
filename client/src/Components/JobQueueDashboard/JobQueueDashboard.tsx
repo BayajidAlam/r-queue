@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Activity, RefreshCw, Clock, CheckCircle, XCircle } from "lucide-react";
+import {
+  Activity,
+  RefreshCw,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Timer,
+  Users,
+} from "lucide-react";
 import {
   LineChart,
   Line,
@@ -10,7 +18,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { useToast } from "../../hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -27,7 +34,6 @@ import {
 } from "../../components/ui/select";
 import { Badge } from "../../components/ui/badge";
 
-
 interface Metric {
   queueLength: number;
   processingJobs: number;
@@ -39,6 +45,15 @@ interface Metric {
     queueLength: number;
     processingJobs: number;
   }>;
+}
+
+interface IHealthMatric {
+  activeWorkers: number;
+  metrics: {
+    avgProcessingTime: number;
+    errorRate: number;
+    throughput: number;
+  };
 }
 
 interface Job {
@@ -72,6 +87,15 @@ const SORT_OPTIONS = [
   { label: "Type", value: "type" },
 ];
 
+const defaultHealthMatrix: IHealthMatric = {
+  activeWorkers: 0,
+  metrics: {
+    avgProcessingTime: 0,
+    errorRate: 0,
+    throughput: 0,
+  },
+};
+
 const JobQueueDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<Metric>({
     queueLength: 0,
@@ -86,17 +110,19 @@ const JobQueueDashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<number>(1);
-  const [limit, setLimit] = useState<number>(50);
+  const [limit, setLimit] = useState<number>(20);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [jobTypes, setJobTypes] = useState<string[]>([]);
+  const [healthMatrix, setHealthMatrix] =
+    useState<IHealthMatric>(defaultHealthMatrix);
 
   const fetchData = useCallback(async () => {
     try {
-      const [metricsRes, jobsRes] = await Promise.all([
+      const [metricsRes, jobsRes, healthRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_PUBLIC_API_URL}/api/metrics`),
         fetch(
           `${
@@ -110,43 +136,47 @@ const JobQueueDashboard: React.FC = () => {
             ...(typeFilter !== "all" && { type: typeFilter }),
           })}`
         ),
+        fetch(`${import.meta.env.VITE_PUBLIC_API_URL}/api/health`),
       ]);
-  
-      if (!metricsRes.ok || !jobsRes.ok) {
+
+      if (!metricsRes.ok || !jobsRes.ok || !healthRes.ok) {
         throw new Error("Failed to fetch data");
       }
-  
-      const [metricsData, jobsData] = await Promise.all([
+
+      const [metricsData, jobsData, healthData] = await Promise.all([
         metricsRes.json(),
         jobsRes.json(),
+        healthRes.json(),
       ]);
-      
+
       // Debug logs
-      console.log('Raw Jobs Data:', jobsData);
-  
+      console.log("Health Data:", healthMatrix);
+
       // Update metrics state
       setMetrics(metricsData);
-  
+
+      // Update health state
+      setHealthMatrix(healthData?.details);
       // Ensure jobsData is an array before processing
-      const jobsArray = Array.isArray(jobsData) ? jobsData : jobsData.jobs || [];
-      
+      const jobsArray = Array.isArray(jobsData)
+        ? jobsData
+        : jobsData.jobs || [];
+
       // Update jobs state
       setJobs(jobsArray);
-  
+
       // Update job types for filter - with null check
-      const types = Array.from(
-        new Set(jobsArray.map((job: Job) => job.type))
-      );
+      const types = Array.from(new Set(jobsArray.map((job: Job) => job.type)));
       setJobTypes(types);
-  
+
       setError(null);
     } catch (err) {
-      console.error('Fetch Error:', err);
+      console.error("Fetch Error:", err);
       setError("Failed to fetch dashboard data");
     } finally {
       setLoading(false);
     }
-  }, [page, limit, statusFilter, typeFilter, sortBy, sortOrder]);
+  }, [page, limit, sortBy, sortOrder, statusFilter, typeFilter, healthMatrix]);
   useEffect(() => {
     fetchData();
     let interval: number | undefined;
@@ -236,7 +266,13 @@ const JobQueueDashboard: React.FC = () => {
       )}
 
       {/* Metrics cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <MetricCard
+          title="Active Workers"
+          value={healthMatrix.activeWorkers}
+          icon={Users}
+          color="purple"
+        />
         <MetricCard
           title="Queue Length"
           value={metrics.queueLength}
