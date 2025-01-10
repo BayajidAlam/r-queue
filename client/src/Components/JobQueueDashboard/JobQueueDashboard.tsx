@@ -5,7 +5,6 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Timer,
   Users,
 } from "lucide-react";
 import {
@@ -47,7 +46,7 @@ interface Metric {
   }>;
 }
 
-interface IHealthMatric {
+interface IHealthMetric {
   activeWorkers: number;
   metrics: {
     avgProcessingTime: number;
@@ -58,7 +57,7 @@ interface IHealthMatric {
 
 interface Job {
   id: string;
-  type: string;
+  type: string ;
   status: "completed" | "failed" | "processing" | "pending";
   priority: string;
   progress: number | null;
@@ -87,7 +86,7 @@ const SORT_OPTIONS = [
   { label: "Type", value: "type" },
 ];
 
-const defaultHealthMatrix: IHealthMatric = {
+const defaultHealthMatrix: IHealthMetric = {
   activeWorkers: 0,
   metrics: {
     avgProcessingTime: 0,
@@ -118,7 +117,8 @@ const JobQueueDashboard: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [jobTypes, setJobTypes] = useState<string[]>([]);
   const [healthMatrix, setHealthMatrix] =
-    useState<IHealthMatric>(defaultHealthMatrix);
+    useState<IHealthMetric>(defaultHealthMatrix);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -177,6 +177,8 @@ const JobQueueDashboard: React.FC = () => {
       setLoading(false);
     }
   }, [page, limit, sortBy, sortOrder, statusFilter, typeFilter, healthMatrix]);
+
+  
   useEffect(() => {
     fetchData();
     let interval: number | undefined;
@@ -203,13 +205,30 @@ const JobQueueDashboard: React.FC = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className={`h-4 w-4 text-${color}-500`} />
+        {title === "Active Workers" ? (
+          <div
+            className={`h-4 w-4 rounded-full ${
+              value === 0 ? "bg-red-500" : "bg-green-500"
+            }`}
+          ></div>
+        ) : (
+          <Icon className={`h-4 w-4 text-${color}-500`} />
+        )}
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
       </CardContent>
     </Card>
   );
+  
+  // Example Usage
+  <MetricCard
+    title="Active Workers"
+    value={healthMatrix.activeWorkers}
+    icon={Users}
+    color="purple"
+  />;
+  
 
   const getStatusBadgeVariant = (
     status: Job["status"]
@@ -224,6 +243,12 @@ const JobQueueDashboard: React.FC = () => {
       default:
         return "secondary";
     }
+  };
+
+  const handleCopy = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   if (loading) {
@@ -397,6 +422,7 @@ const JobQueueDashboard: React.FC = () => {
               <thead>
                 <tr className="border-b">
                   <th className="p-3 text-sm font-medium text-left">ID</th>
+                  
                   <th className="p-3 text-sm font-medium text-left">Type</th>
                   <th className="p-3 text-sm font-medium text-left">Status</th>
                   <th className="p-3 text-sm font-medium text-left">
@@ -411,7 +437,35 @@ const JobQueueDashboard: React.FC = () => {
               <tbody className="divide-y">
                 {jobs?.map((job) => (
                   <tr key={job.id} className="hover:bg-gray-50">
-                    <td className="p-3 text-sm text-start">{job.id}</td>
+                    <td className="p-3 text-sm text-start">
+                      <div className="flex items-center space-x-2">
+                        <span>{job.id}</span>
+                        <button
+                          onClick={() => handleCopy(job.id)}
+                          className="text-gray-500 hover:text-blue-500"
+                          title="Copy ID"
+                        >
+                          {copiedId === job.id ? (
+                            <span className="text-green-500">✔</span> // Success feedback
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={1.5}
+                              stroke="currentColor"
+                              className="w-4 h-4"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M8.25 15a2.25 2.25 0 01-2.25-2.25v-7.5A2.25 2.25 0 018.25 3h7.5A2.25 2.25 0 0118 5.25v7.5A2.25 2.25 0 0115.75 15h-7.5zm12 1.5v2.25A2.25 2.25 0 0118 21H8.25"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </td>
                     <td className="p-3 text-sm text-start">{job.type}</td>
                     <td className="p-3">
                       <Badge variant={getStatusBadgeVariant(job.status)}>

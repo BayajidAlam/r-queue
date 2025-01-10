@@ -18,7 +18,7 @@ router.post("/jobs", async (req, res) => {
       priority || JobPriority.MEDIUM,
       dependencies || []
     );
-    console.log(jobId,'jobId')
+    console.log("jobId:- ", jobId, "priority:-: ", priority);
     res.status(201).json({ jobId });
   } catch (error) {
     const err = error as Error;

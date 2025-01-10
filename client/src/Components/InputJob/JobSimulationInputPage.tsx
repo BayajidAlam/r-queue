@@ -1,9 +1,6 @@
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-} from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
@@ -14,6 +11,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../components/ui/dialog";
+
+enum JobPriority {
+  LOW = 1,
+  MEDIUM = 2,
+  HIGH = 3,
+}
 
 const JobSimulationPage = () => {
   const [formData, setFormData] = useState({
@@ -26,11 +29,11 @@ const JobSimulationPage = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -43,7 +46,7 @@ const JobSimulationPage = () => {
         dependencies: formData.dependencies
           .split(",")
           .map((dep) => dep.trim())
-          .filter((dep) => dep), 
+          .filter((dep) => dep),
       };
 
       const response = await fetch(
@@ -59,7 +62,7 @@ const JobSimulationPage = () => {
       if (!response.ok) throw new Error(data.message);
       setResult(data);
       setIsOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -70,15 +73,15 @@ const JobSimulationPage = () => {
     <div className="p-4 max-w-md mx-auto">
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button>Open Job Simulation</Button>
+          <Button>Add new job</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Job Simulation</DialogTitle>
+            <DialogTitle className="text-center">Job Simulation</DialogTitle>
           </DialogHeader>
           <Card>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={handleSubmit} className="space-y-3 py-2">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Job Type
@@ -104,7 +107,7 @@ const JobSimulationPage = () => {
                   <Input
                     type="number"
                     min="1"
-                    max="60"
+                    max="300"
                     value={formData.processingTime}
                     onChange={(e) =>
                       setFormData({
@@ -127,9 +130,9 @@ const JobSimulationPage = () => {
                       setFormData({ ...formData, priority: e.target.value })
                     }
                   >
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="LOW">Low</option>
+                    <option value={JobPriority.HIGH}>High</option>
+                    <option value={JobPriority.MEDIUM}>Medium</option>
+                    <option value={JobPriority.LOW}>Low</option>
                   </select>
                 </div>
 
@@ -160,7 +163,7 @@ const JobSimulationPage = () => {
                         dependencies: e.target.value,
                       })
                     }
-                    placeholder="jobId1, jobId2"
+                    placeholder="Paste job id here..."
                     className="p-1"
                   />
                 </div>
@@ -184,7 +187,7 @@ const JobSimulationPage = () => {
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  Create Simulated Job
+                  Add new job
                 </Button>
               </form>
 
@@ -196,9 +199,7 @@ const JobSimulationPage = () => {
 
               {result && (
                 <Alert className="mt-4">
-                  <AlertDescription>
-                    Job created successfully! Job ID: {result.jobId}
-                  </AlertDescription>
+                  <AlertDescription>Job created successfully!</AlertDescription>
                 </Alert>
               )}
             </CardContent>
