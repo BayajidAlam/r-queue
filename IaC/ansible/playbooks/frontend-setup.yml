@@ -1,0 +1,88 @@
+- name: Setup Frontend
+  hosts: frontend
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install curl
+      apt:
+        name: curl
+        state: present
+
+    - name: Install nvm
+      shell: |
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+      args:
+        creates: "/home/{{ ansible_user }}/.nvm/nvm.sh"
+
+    - name: Install Node.js 18
+      shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install 18
+      args:
+        executable: /bin/bash
+
+    - name: Ensure repository directory exists and is owned by the correct user
+      file:
+        path: "/home/{{ ansible_user }}/r-queue"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Clone project repository if not already present
+      git:
+        repo: "{{ project_repo }}"
+        dest: "/home/{{ ansible_user }}/r-queue"
+        version: main
+        force: yes  # Force the update
+
+    - name: Install pm2 globally
+      shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        npm install -g pm2
+      args:
+        executable: /bin/bash
+
+    - name: Install npm dependencies
+      shell: |
+        cd /home/{{ ansible_user }}/r-queue/client
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        npm install
+      args:
+        executable: /bin/bash
+
+    - name: Ensure .env file exists
+      file:
+        path: "/home/{{ ansible_user }}/r-queue/client/.env"
+        state: touch  # Creates the file if it does not exist
+
+    - name: Update .env file with Node instance IP
+      lineinfile:
+        path: "/home/{{ ansible_user }}/r-queue/client/.env"
+        regexp: "^VITE_PUBLIC_API_URL="
+        line: "VITE_PUBLIC_API_URL=http://{{ nodejs_public_ip }}:6379"  # Correct variable
+      notify:
+        - Restart frontend server
+
+    - name: Start frontend server with pm2
+      shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        cd /home/{{ ansible_user }}/r-queue/client
+        pm2 start npm --name "frontend" -- run dev
+      args:
+        executable: /bin/bash
+
+  handlers:
+    - name: Restart frontend server
+      shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        pm2 restart frontend
+      args:
+        executable: /bin/bash

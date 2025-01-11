@@ -1,0 +1,75 @@
+# playbooks/redis-cluster.yml
+- name: Create Redis Cluster
+  hosts: redis1
+  become: false
+  
+  vars:
+    redis_port: 6379
+    cluster_hosts: "{{ groups['redis_nodes'] }}"
+  
+  tasks:
+    - name: Install Redis tools on bastion
+      apt:
+        name: redis-tools
+        state: present
+      become: true
+      
+    - name: Get Redis version
+      shell: "redis-cli --version"
+      register: redis_version
+      changed_when: false
+      
+    - name: Display Redis version
+      debug:
+        var: redis_version.stdout
+        
+    - name: Wait for Redis ports to be available on all nodes
+      wait_for:
+        host: "{{ hostvars[item]['ansible_host'] }}"
+        port: "{{ redis_port }}"
+        timeout: 30
+      loop: "{{ cluster_hosts }}"
+        
+    - name: Test connectivity to all Redis nodes
+      shell: "redis-cli -h {{ hostvars[item]['ansible_host'] }} ping"
+      register: redis_ping
+      ignore_errors: true
+      loop: "{{ cluster_hosts }}"
+      
+    - name: Display ping results
+      debug:
+        var: redis_ping
+        
+    - name: Prepare cluster creation command
+      set_fact:
+        cluster_command: >-
+          redis-cli --cluster create 
+          {% for host in cluster_hosts %}
+          {{ hostvars[host]['ansible_host'] }}:{{ redis_port }}
+          {% endfor %}
+          --cluster-replicas 1 --cluster-yes
+          
+    - name: Create Redis cluster with retries
+      shell: "{{ cluster_command }}"
+      register: cluster_result
+      retries: 3
+      delay: 10
+      until: cluster_result.rc == 0
+      ignore_errors: true
+      
+    - name: Show cluster creation result
+      debug:
+        var: cluster_result.stdout_lines
+        
+    - name: Verify cluster state
+      shell: "redis-cli -h {{ hostvars[cluster_hosts[0]]['ansible_host'] }} cluster nodes"
+      register: cluster_state
+      when: cluster_result is success
+      
+    - name: Display cluster state
+      debug:
+        var: cluster_state.stdout_lines
+      when: cluster_state is defined
+
+
+#ansible-playbook -e @vars.yml playbooks/redis-cluster.yml

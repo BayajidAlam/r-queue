@@ -1,0 +1,6 @@
+ansible_user: ubuntu
+ansible_ssh_private_key_file: ../pulumi/MyKeyPair.pem
+ansible_python_interpreter: /usr/bin/python3
+project_repo: "https://github.com/BayajidAlam/r-queue"
+redis_port: 6379
+redis_password: "redis"

@@ -136,6 +136,8 @@ const publicSecurityGroup = new aws.ec2.SecurityGroup("public-secgrp", {
         { protocol: "tcp", fromPort: 3000, toPort: 3000, cidrBlocks: ["0.0.0.0/0"] },  // Node.js
         { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },  // HTTP
         { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },  // HTTPS
+        { protocol: "tcp", fromPort: 5173, toPort: 5173, cidrBlocks: ["0.0.0.0/0"] },  // React app
+        { protocol: "tcp", fromPort: 5000, toPort: 5000, cidrBlocks: ["0.0.0.0/0"] },  // Backend
     ],
     egress: [
         { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] }
@@ -147,18 +149,20 @@ const publicSecurityGroup = new aws.ec2.SecurityGroup("public-secgrp", {
 
 const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
     vpcId: vpc.id,
-    description: "Allow Redis traffic from public subnet",
+    description: "Allow Redis cluster traffic",
     ingress: [
-        { protocol: "tcp", fromPort: 6379, toPort: 6379, cidrBlocks: ["10.0.1.0/24"] },  // Redis
-        { protocol: "tcp", fromPort: 16379, toPort: 16379, cidrBlocks: ["10.0.1.0/24"] },  // Redis Cluster
-        { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["10.0.1.0/24"] },  // SSH from public subnet
+        // Allow Redis port from public subnet (for bastion access)
+        { protocol: "tcp", fromPort: 6379, toPort: 6379, cidrBlocks: ["10.0.1.0/24"] },
+        { protocol: "tcp", fromPort: 16379, toPort: 16379, cidrBlocks: ["10.0.1.0/24"] },
+        // Allow SSH from public subnet
+        { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["10.0.1.0/24"] },
+        // Allow Redis ports between cluster nodes
+        { protocol: "tcp", fromPort: 6379, toPort: 6379, cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"] },
+        { protocol: "tcp", fromPort: 16379, toPort: 16379, cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"] },
     ],
     egress: [
         { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] }
     ],
-    tags: {
-        Name: "redis-secgrp",
-    },
 });
 
 export const publicSecurityGroupId = publicSecurityGroup.id;
@@ -181,7 +185,7 @@ interface EC2InstanceArgs {
 }
 
 const nodejsInstance = new aws.ec2.Instance("nodejs-instance", {
-    instanceType: "t2.micro",
+    instanceType: "t3.micro",
     vpcSecurityGroupIds: [publicSecurityGroup.id],
     ami: amiId,
     subnetId: publicSubnet1.id,
@@ -211,7 +215,7 @@ const frontendInstance = new aws.ec2.Instance("frontend-instance", {
 // Helper function to create Redis instances
 const createRedisInstance = (name: string, subnetId: pulumi.Input<string>): aws.ec2.Instance => {
     return new aws.ec2.Instance(name, {
-        instanceType: "t2.micro",
+        instanceType: "t2.nano",
         vpcSecurityGroupIds: [redisSecurityGroup.id],
         ami: amiId,
         subnetId: subnetId,
@@ -233,6 +237,8 @@ const redisInstance4 = createRedisInstance("redis-instance-4", privateSubnet2.id
 const redisInstance5 = createRedisInstance("redis-instance-5", privateSubnet2.id);
 const redisInstance6 = createRedisInstance("redis-instance-6", privateSubnet2.id);
 
+
+
 // Export instance details
 export const nodejsInstanceId = nodejsInstance.id;
 export const nodejsInstancePublicIp = nodejsInstance.publicIp;
@@ -250,3 +256,70 @@ export const redisInstance5Id = redisInstance5.id;
 export const redisInstance5PrivateIp = redisInstance5.privateIp;
 export const redisInstance6Id = redisInstance6.id;
 export const redisInstance6PrivateIp = redisInstance6.privateIp;
+
+
+
+import * as fs from "fs";
+import * as path from "path";
+
+// Create ansible vars directory if it doesn't exist
+const ansibleVarsPath = path.join(__dirname, "..", "ansible");
+if (!fs.existsSync(ansibleVarsPath)) {
+    fs.mkdirSync(ansibleVarsPath, { recursive: true });
+}
+
+// Export function to write ansible vars
+pulumi.all([
+    frontendInstance.publicIp,
+    nodejsInstance.publicIp,
+    redisInstance1.privateIp,
+    redisInstance2.privateIp,
+    redisInstance3.privateIp,
+    redisInstance4.privateIp,
+    redisInstance5.privateIp,
+    redisInstance6.privateIp,
+]).apply(
+    ([
+        frontendIp,
+        nodejsIp,
+        redis1Ip,
+        redis2Ip,
+        redis3Ip,
+        redis4Ip,
+        redis5Ip,
+        redis6Ip,
+    ]) => {
+        if (
+            !frontendIp ||
+            !nodejsIp ||
+            !redis1Ip ||
+            !redis2Ip ||
+            !redis3Ip ||
+            !redis4Ip ||
+            !redis5Ip ||
+            !redis6Ip
+        ) {
+            throw new Error("Missing required instance IPs.");
+        }
+
+        const varsYaml = `---
+frontend_public_ip: "${frontendIp}"
+nodejs_public_ip: "${nodejsIp}"
+redis1_private_ip: "${redis1Ip}"
+redis2_private_ip: "${redis2Ip}"
+redis3_private_ip: "${redis3Ip}"
+redis4_private_ip: "${redis4Ip}"
+redis5_private_ip: "${redis5Ip}"
+redis6_private_ip: "${redis6Ip}"
+`;
+        try {
+            fs.writeFileSync(path.join(ansibleVarsPath, "vars.yml"), varsYaml);
+            console.log("vars.yml has been successfully created.");
+        } catch (err) {
+            console.error("Failed to write vars.yml:", err);
+            throw err;
+        }
+    }
+);
+
+

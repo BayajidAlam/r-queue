@@ -1,0 +1,29 @@
+# templates/redis.conf.j2
+bind 0.0.0.0
+protected-mode no
+port {{ redis_port | default(6379) }}
+dir /var/lib/redis
+pidfile /var/run/redis/redis-server.pid
+logfile /var/log/redis/redis-server.log
+
+# Cluster configuration
+cluster-enabled yes
+cluster-config-file nodes.conf
+cluster-node-timeout 5000
+cluster-announce-ip {{ ansible_host }}
+cluster-announce-port {{ redis_port | default(6379) }}
+
+# Performance tuning
+tcp-backlog 511
+tcp-keepalive 300
+supervised systemd
+maxmemory-policy allkeys-lru
+
+# Persistence
+appendonly yes
+appendfilename "appendonly.aof"
+appendfsync everysec
+
+# Basic security
+rename-command FLUSHDB ""
+rename-command FLUSHALL ""

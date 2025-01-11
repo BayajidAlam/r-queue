@@ -1,0 +1,89 @@
+# playbooks/redis-setup.yml
+- name: Setup Redis Cluster
+  hosts: redis_nodes
+  become: true
+  
+  vars:
+    redis_port: 6379
+  
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install Redis server
+      apt:
+        name: redis-server
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Stop Redis service before configuration
+      service:
+        name: redis-server
+        state: stopped
+
+    - name: Create Redis configuration from template
+      template:
+        src: ../templates/redis.conf.j2
+        dest: /etc/redis/redis.conf
+        owner: redis
+        group: redis
+        mode: '0644'
+
+    - name: Ensure Redis directory permissions
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: redis
+        group: redis
+        mode: '0755'
+      loop:
+        - /var/lib/redis
+        - /var/log/redis
+
+    - name: Clear existing Redis data
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/redis/nodes.conf
+        - /var/lib/redis/dump.rdb
+        - /var/lib/redis/appendonly.aof
+
+    - name: Start Redis service
+      service:
+        name: redis-server
+        state: started
+        enabled: yes
+
+    - name: Wait for Redis to start
+      wait_for:
+        port: "{{ redis_port }}"
+        timeout: 30
+
+    - name: Check Redis service status
+      command: systemctl status redis-server
+      register: redis_status
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display Redis logs if service failed
+      command: journalctl -u redis-server -n 50 --no-pager
+      register: redis_logs
+      when: redis_status.rc != 0
+      changed_when: false
+
+    - name: Show Redis logs
+      debug:
+        var: redis_logs.stdout_lines
+      when: redis_logs is defined
+
+  handlers:
+    - name: Restart Redis
+      service:
+        name: redis-server
+        state: restarted
+
+
+# ansible-playbook -e @vars.yml playbooks/redis-setup.yml

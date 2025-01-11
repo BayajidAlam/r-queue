@@ -1,0 +1,35 @@
+---
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: ../pulumi/MyKeyPair.pem
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    redis_nodes:
+      hosts:
+        redis1:
+          ansible_host: "{{ redis1_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p -q ubuntu@{{ nodejs_public_ip }}"'
+        redis2:
+          ansible_host: "{{ redis2_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p -q ubuntu@{{ nodejs_public_ip }}"'
+        redis3:
+          ansible_host: "{{ redis3_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p -q ubuntu@{{ nodejs_public_ip }}"'
+        redis4:
+          ansible_host: "{{ redis4_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p -q ubuntu@{{ nodejs_public_ip }}"'
+        redis5:
+          ansible_host: "{{ redis5_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p -q ubuntu@{{ nodejs_public_ip }}"'
+        redis6:
+          ansible_host: "{{ redis6_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p -q ubuntu@{{ nodejs_public_ip }}"'
+    backend:
+      hosts:
+        nodejs:
+          ansible_host: "{{ nodejs_public_ip }}"
+    frontend:
+      hosts:
+        frontend_server:
+          ansible_host: "{{ frontend_public_ip }}"
