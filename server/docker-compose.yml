@@ -94,10 +94,3 @@ networks:
   redis-cluster-network:
     driver: bridge
     
-volumes:
-  redis-node-1-data:
-  redis-node-2-data:
-  redis-node-3-data:
-  redis-node-4-data:
-  redis-node-5-data:
-  redis-node-6-data:
