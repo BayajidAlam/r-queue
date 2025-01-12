@@ -1,0 +1,14 @@
+- name: Run all playbooks
+  hosts: all
+  tasks:
+    - name: Include Playbook 1
+      ansible.builtin.include_tasks: backend-setup.yml
+
+    - name: Include Playbook 2
+      ansible.builtin.include_tasks: frontend-setup.yml 
+
+    - name: Include Playbook 3
+      ansible.builtin.include_tasks: redis-setup.yml
+
+    - name: Include Playbook 4
+      ansible.builtin.include_tasks: redis-cluster.yml

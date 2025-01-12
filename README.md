@@ -274,3 +274,47 @@ Before deploying the application, ensure you have the following:
 
 
 ## Deployments
+**1. Clone the Repository**
+
+```bash
+  git clone https://github.com/BayajidAlam/r-queue
+  cd r-queue/IaC/pulumi
+
+```
+
+**2. Configure AWS CLI**
+
+Provide Access Key and Secret Key 
+![image](https://github.com/user-attachments/assets/d8c35819-7182-4629-a7f4-54010ba175d2)
+
+**3. Create Key Pair**
+
+Create a new key pair for our instances using the following command:
+
+```bash
+aws ec2 create-key-pair --key-name MyKeyPair --query 'KeyMaterial' --output text > MyKeyPair.pem
+```
+
+**3. Deploy the infrastructure**
+
+```bash
+pulumi up
+```
+
+You will see like this:
+![Screenshot from 2025-01-12 01-10-56](https://github.com/user-attachments/assets/adeaa6a4-93f7-4280-bdb3-9a9d35b59bbc)
+
+On your AWS VPC resources map will be like:
+![image](https://github.com/user-attachments/assets/944bbc00-397e-492e-bfa7-1ba071a653bf)
+
+EC2 dashboard will be like:
+![image](https://github.com/user-attachments/assets/acb9855a-e821-4328-973b-754ef9f138a9)
+
+**4. Run the Ansible Playbook**
+First navigate to ansible directory in pulumi and give following command
+```bash
+ansible-playbook -e @vars.yml playbooks/redis-setup.yml
+ansible-playbook -e @vars.yml playbooks/redis-cluster.yml
+ansible-playbook -e @vars.yml playbooks/frontend-setup.yml
+ansible-playbook -e @vars.yml playbooks/backend-setup.yml
+```
