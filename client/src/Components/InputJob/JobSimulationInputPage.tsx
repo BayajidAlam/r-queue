@@ -22,7 +22,7 @@ const JobSimulationPage = () => {
   const [formData, setFormData] = useState({
     type: "email",
     data: "",
-    priority: "MEDIUM",
+    priority: JobPriority.MEDIUM,
     dependencies: "",
     processingTime: 10,
     shouldFail: false,
@@ -127,7 +127,10 @@ const JobSimulationPage = () => {
                     className="w-full p-1 border rounded"
                     value={formData.priority}
                     onChange={(e) =>
-                      setFormData({ ...formData, priority: e.target.value })
+                      setFormData({
+                        ...formData,
+                        priority: parseInt(e.target.value), 
+                      })
                     }
                   >
                     <option value={JobPriority.HIGH}>High</option>

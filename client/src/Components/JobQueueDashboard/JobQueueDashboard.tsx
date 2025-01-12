@@ -165,8 +165,8 @@ const JobQueueDashboard: React.FC = () => {
       // Update jobs state
       setJobs(jobsArray);
 
-      // Update job types for filter - with null check
-      const types = Array.from(new Set(jobsArray.map((job: Job) => job.type)));
+
+      const types: string[] = Array.from(new Set(jobsArray.map((job: Job) => job.type)));
       setJobTypes(types);
 
       setError(null);
@@ -201,6 +201,7 @@ const JobQueueDashboard: React.FC = () => {
     fetchData,
   ]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const MetricCard = ({ title, value, icon: Icon, color }: any) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -232,10 +233,10 @@ const JobQueueDashboard: React.FC = () => {
 
   const getStatusBadgeVariant = (
     status: Job["status"]
-  ): "default" | "success" | "destructive" | "secondary" => {
+  ): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case "completed":
-        return "success";
+        return "default";
       case "failed":
         return "destructive";
       case "processing":
@@ -468,6 +469,7 @@ const JobQueueDashboard: React.FC = () => {
                     </td>
                     <td className="p-3 text-sm text-start">{job.type}</td>
                     <td className="p-3">
+                      //@ts-ignore
                       <Badge variant={getStatusBadgeVariant(job.status)}>
                         {job.status}
                       </Badge>

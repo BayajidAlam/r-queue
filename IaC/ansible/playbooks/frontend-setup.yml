@@ -1,88 +1,97 @@
-- name: Setup Frontend
+- name: Setup Frontend for React project
   hosts: frontend
   become: true
+  vars:
+    app_dir: /home/ubuntu/r-queue
+    nginx_conf_path: /etc/nginx/sites-available/react-app
+    backend_url: "http://{{ nodejs_public_ip }}:5000"
+
   tasks:
-    - name: Update apt cache
+    - name: Update system and install necessary packages
       apt:
         update_cache: yes
-
-    - name: Install curl
-      apt:
-        name: curl
+        upgrade: yes
+        name:
+          - curl
+          - git
+          - nginx
         state: present
 
     - name: Install nvm
       shell: |
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+        sudo -u ubuntu bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash"
+        export NVM_DIR="/home/ubuntu/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
       args:
-        creates: "/home/{{ ansible_user }}/.nvm/nvm.sh"
+        creates: "/home/ubuntu/.nvm/nvm.sh"
+        executable: /bin/bash
 
-    - name: Install Node.js 18
+    - name: Install Node.js 18 using nvm
       shell: |
-        export NVM_DIR="$HOME/.nvm"
+        export NVM_DIR="/home/ubuntu/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         nvm install 18
       args:
         executable: /bin/bash
+      become_user: ubuntu
 
-    - name: Ensure repository directory exists and is owned by the correct user
+    - name: Ensure repository directory exists
       file:
-        path: "/home/{{ ansible_user }}/r-queue"
+        path: "{{ app_dir }}"
         state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: ubuntu
+        group: ubuntu
 
-    - name: Clone project repository if not already present
+    - name: Clone the r-queue project repository
       git:
-        repo: "{{ project_repo }}"
-        dest: "/home/{{ ansible_user }}/r-queue"
+        repo: "https://github.com/BayajidAlam/r-queue.git"
+        dest: "{{ app_dir }}"
         version: main
-        force: yes  # Force the update
+        force: yes
+      become_user: ubuntu
 
-    - name: Install pm2 globally
+    - name: Install project dependencies for the frontend
       shell: |
-        export NVM_DIR="$HOME/.nvm"
+        export NVM_DIR="/home/ubuntu/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        npm install -g pm2
-      args:
-        executable: /bin/bash
-
-    - name: Install npm dependencies
-      shell: |
-        cd /home/{{ ansible_user }}/r-queue/client
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        cd {{ app_dir }}/client
         npm install
-      args:
-        executable: /bin/bash
+      become_user: ubuntu
 
-    - name: Ensure .env file exists
-      file:
-        path: "/home/{{ ansible_user }}/r-queue/client/.env"
-        state: touch  # Creates the file if it does not exist
-
-    - name: Update .env file with Node instance IP
-      lineinfile:
-        path: "/home/{{ ansible_user }}/r-queue/client/.env"
-        regexp: "^VITE_PUBLIC_API_URL="
-        line: "VITE_PUBLIC_API_URL=http://{{ nodejs_public_ip }}:6379"  # Correct variable
-      notify:
-        - Restart frontend server
-
-    - name: Start frontend server with pm2
+    - name: Build React application
       shell: |
-        export NVM_DIR="$HOME/.nvm"
+        export NVM_DIR="/home/ubuntu/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        cd /home/{{ ansible_user }}/r-queue/client
-        pm2 start npm --name "frontend" -- run dev
-      args:
-        executable: /bin/bash
+        cd {{ app_dir }}/client
+        npm run build
+      become_user: ubuntu
+
+    - name: Create Nginx configuration
+      template:
+        src: nginx.conf.j2
+        dest: "{{ nginx_conf_path }}"
+      notify: Reload Nginx
+
+    - name: Enable Nginx site configuration
+      file:
+        src: "{{ nginx_conf_path }}"
+        dest: /etc/nginx/sites-enabled/react-app
+        state: link
+      notify: Reload Nginx
+
+    - name: Ensure .env file exists in the client directory
+      copy:
+        content: "VITE_PUBLIC_API_URL={{ backend_url }}"
+        dest: "{{ app_dir }}/client/.env"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Print frontend access details
+      debug:
+        msg: "Frontend is accessible at http://{{ ansible_host }}"
 
   handlers:
-    - name: Restart frontend server
-      shell: |
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        pm2 restart frontend
-      args:
-        executable: /bin/bash
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
