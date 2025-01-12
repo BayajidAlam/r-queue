@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-const API_URL = 'http://localhost:5000/api/jobs';
+const API_URL = `${process.env.BACKEND_IP_ADDRESS}:5000/api/jobs`;
 const JOB_TYPES = ['email', 'report', 'image', 'data'];
 const PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'];
 

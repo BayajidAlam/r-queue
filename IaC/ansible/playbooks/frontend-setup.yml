@@ -1,97 +1,168 @@
-- name: Setup Frontend for React project
+- name: Deploy React Application
   hosts: frontend
   become: true
   vars:
-    app_dir: /home/ubuntu/r-queue
-    nginx_conf_path: /etc/nginx/sites-available/react-app
-    backend_url: "http://{{ nodejs_public_ip }}:5000"
-
+    app_directory: "/opt/r-queue"
+    node_version: "18.x"
+    backend_url: "http://{{ nodejs_public_ip }}:5000"  # Dynamically set backend URL
+    
   tasks:
-    - name: Update system and install necessary packages
+    - name: Update apt cache
       apt:
-        update_cache: yes
-        upgrade: yes
+        update_cache: true
+      when: ansible_os_family == "Debian"
+    
+    - name: Install required system packages
+      apt:
         name:
-          - curl
           - git
-          - nginx
+          - curl
+          - build-essential
         state: present
-
-    - name: Install nvm
+      when: ansible_os_family == "Debian"
+    
+    - name: Add NodeJS repository
       shell: |
-        sudo -u ubuntu bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash"
-        export NVM_DIR="/home/ubuntu/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-      args:
-        creates: "/home/ubuntu/.nvm/nvm.sh"
-        executable: /bin/bash
-
-    - name: Install Node.js 18 using nvm
-      shell: |
-        export NVM_DIR="/home/ubuntu/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install 18
-      args:
-        executable: /bin/bash
-      become_user: ubuntu
-
-    - name: Ensure repository directory exists
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }} | bash -
+      when: ansible_os_family == "Debian"
+    
+    - name: Install NodeJS
+      apt:
+        name: nodejs
+        state: present
+      when: ansible_os_family == "Debian"
+    
+    - name: Create application directory
       file:
-        path: "{{ app_dir }}"
+        path: "{{ app_directory }}"
         state: directory
+        mode: '0755'
         owner: ubuntu
         group: ubuntu
-
-    - name: Clone the r-queue project repository
+    
+    - name: Clone repository
       git:
-        repo: "https://github.com/BayajidAlam/r-queue.git"
-        dest: "{{ app_dir }}"
-        version: main
-        force: yes
+        repo: https://github.com/BayajidAlam/r-queue
+        dest: "{{ app_directory }}"
+        force: true
       become_user: ubuntu
-
-    - name: Install project dependencies for the frontend
-      shell: |
-        export NVM_DIR="/home/ubuntu/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        cd {{ app_dir }}/client
-        npm install
-      become_user: ubuntu
-
-    - name: Build React application
-      shell: |
-        export NVM_DIR="/home/ubuntu/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        cd {{ app_dir }}/client
-        npm run build
-      become_user: ubuntu
-
-    - name: Create Nginx configuration
-      template:
-        src: nginx.conf.j2
-        dest: "{{ nginx_conf_path }}"
-      notify: Reload Nginx
-
-    - name: Enable Nginx site configuration
+    
+    - name: Set proper ownership for app directory
       file:
-        src: "{{ nginx_conf_path }}"
-        dest: /etc/nginx/sites-enabled/react-app
-        state: link
-      notify: Reload Nginx
-
-    - name: Ensure .env file exists in the client directory
-      copy:
-        content: "VITE_PUBLIC_API_URL={{ backend_url }}"
-        dest: "{{ app_dir }}/client/.env"
+        path: "{{ app_directory }}"
         owner: ubuntu
         group: ubuntu
-
-    - name: Print frontend access details
-      debug:
-        msg: "Frontend is accessible at http://{{ ansible_host }}"
-
-  handlers:
-    - name: Reload Nginx
-      service:
-        name: nginx
-        state: reloaded
+        recurse: true
+    
+    - name: Install dependencies
+      npm:
+        path: "{{ app_directory }}/client"
+        state: present
+      become_user: ubuntu
+    
+    - name: Create .env file
+      copy:
+        dest: "{{ app_directory }}/client/.env"
+        content: |
+          VITE_PUBLIC_API_URL={{ backend_url }}  # Dynamic backend URL here
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+    
+    - name: Install nodemon globally
+      npm:
+        name: nodemon
+        global: true
+        state: present
+        
+    - name: Install serve globally
+      npm:
+        name: serve
+        global: true
+        state: present
+    
+    - name: Build React application
+      command: npm run build
+      args:
+        chdir: "{{ app_directory }}/client"
+      become_user: ubuntu
+    
+    - name: Create start script
+      copy:
+        dest: "{{ app_directory }}/start-frontend.js"
+        content: |
+          const { spawn } = require('child_process');
+          const serve = spawn('serve', ['-s', 'client/dist', '-p', '5173']);
+          
+          serve.stdout.on('data', (data) => {
+            console.log(`stdout: ${data}`);
+          });
+          
+          serve.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+          });
+          
+          serve.on('close', (code) => {
+            console.log(`Child process exited with code ${code}`);
+          });
+        mode: '0755'
+        owner: ubuntu
+        group: ubuntu
+    
+    - name: Create systemd service file
+      copy:
+        dest: /etc/systemd/system/frontend.service
+        content: |
+          [Unit]
+          Description=Frontend React Application
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory={{ app_directory }}
+          ExecStart=/usr/local/bin/nodemon start-frontend.js
+          Restart=always
+          Environment=NODE_ENV=production
+          
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+        owner: root
+        group: root
+    
+    - name: Reload systemd
+      systemd:
+        daemon_reload: true
+    
+    - name: Enable and start frontend service
+      systemd:
+        name: frontend
+        enabled: true
+        state: started
+    
+    - name: Ensure UFW is installed
+      apt:
+        name: ufw
+        state: present
+    
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+    
+    - name: Configure firewall for React app
+      ufw:
+        rule: allow
+        port: "5173"
+        proto: tcp
+    
+    - name: Enable UFW with default deny policy
+      ufw:
+        state: enabled
+        policy: deny
+    
+    - name: Wait for service to start
+      pause:
+        seconds: 10

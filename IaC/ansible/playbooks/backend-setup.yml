@@ -1,46 +1,166 @@
 - name: Setup Backend Node.js Server
   hosts: backend
   become: true
-  vars_files:
-    - ../vars.yml
-  
+  vars:
+    app_directory: "/opt/r-queue"
+    node_version: "18.x"
+    backend_port: "5000"
+
   tasks:
-    - name: Update apt cache and install nodejs & npm
+    - name: Update apt cache
       apt:
-        name: ['nodejs', 'npm']
-        update_cache: yes
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Install required system packages
+      apt:
+        name:
+          - git
+          - curl
+          - build-essential
         state: present
-      become: true
+      when: ansible_os_family == "Debian"
 
-    - name: Clone project repository
-      git:
-        repo: "{{ project_repo }}"
-        dest: "/home/{{ ansible_user }}/r-queue"
-        force: yes
-
-    - name: Install project dependencies
+    - name: Add NodeJS repository
       shell: |
-        cd /home/{{ ansible_user }}/r-queue/server
-        npm install
-      args:
-        executable: /bin/bash
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }} | bash -
+      when: ansible_os_family == "Debian"
+
+    - name: Install NodeJS
+      apt:
+        name: nodejs
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure UFW is installed
+      apt:
+        name: ufw
+        state: present
+
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+
+    - name: Configure firewall for Backend API
+      ufw:
+        rule: allow
+        port: "{{ backend_port }}"
+        proto: tcp
+
+    - name: Enable UFW with default deny policy
+      ufw:
+        state: enabled
+        policy: deny
+
+    - name: Create application directory
+      file:
+        path: "{{ app_directory }}"
+        state: directory
+        mode: '0755'
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Clone repository if not already present
+      git:
+        repo: https://github.com/BayajidAlam/r-queue
+        dest: "{{ app_directory }}"
+        force: true
+      become_user: ubuntu
+
+    - name: Set proper ownership for app directory
+      file:
+        path: "{{ app_directory }}"
+        owner: ubuntu
+        group: ubuntu
+        recurse: true
+
+    - name: Install dependencies
+      npm:
+        path: "{{ app_directory }}/server"
+        state: present
+      become_user: ubuntu
 
     - name: Create .env file
       copy:
-        dest: "/home/{{ ansible_user }}/r-queue/server/.env"
+        dest: "{{ app_directory }}/server/.env"
         content: |
           REDIS_HOST={{ redis1_private_ip }}
           PORT={{ backend_port }}
+          BACKEND_IP_ADDRESS={{ nodejs_public_ip }}
+        owner: ubuntu
+        group: ubuntu
         mode: '0644'
 
-    - name: Start server with nodemon
-      shell: |
-        cd /home/{{ ansible_user }}/r-queue/server
-        npm run dev
-      args:
-        executable: /bin/bash
-        async: 1000
-        poll: 0
+    - name: Install nodemon globally
+      npm:
+        name: nodemon
+        global: true
+        state: present
+
+    - name: Create start script
+      copy:
+        dest: "{{ app_directory }}/start-backend.js"
+        content: |
+          const { spawn } = require('child_process');
+          const path = require('path');
+          
+          const serverPath = path.join(__dirname, 'server', 'index.js');
+          const nodeProcess = spawn('node', [serverPath], {
+            env: { ...process.env, NODE_ENV: 'production' }
+          });
+          
+          nodeProcess.stdout.on('data', (data) => {
+            console.log(`stdout: ${data}`);
+          });
+          
+          nodeProcess.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+          });
+          
+          nodeProcess.on('close', (code) => {
+            console.log(`Child process exited with code ${code}`);
+          });
+        mode: '0755'
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Create systemd service file
+      copy:
+        dest: /etc/systemd/system/backend.service
+        content: |
+          [Unit]
+          Description=Backend Node.js Server
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory={{ app_directory }}
+          ExecStart=/usr/bin/nodemon start-backend.js
+          Restart=always
+          Environment=NODE_ENV=production
+          
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: true
+
+    - name: Enable and start backend service
+      systemd:
+        name: backend
+        enabled: true
+        state: started
+
+    - name: Wait for service to start
+      pause:
+        seconds: 10
 
     - name: Show backend URL
       debug:

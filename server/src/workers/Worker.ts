@@ -10,7 +10,6 @@ export class Worker extends EventEmitter {
     private isRunning: boolean = false;
     private currentJob?: Job;
     private workerId: string;
-    private processingTime: number = 0;
     private heartbeatInterval?: NodeJS.Timeout;
     private scalingInterval?: NodeJS.Timeout;
     private scalingLock: boolean = false;

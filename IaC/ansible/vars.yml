@@ -1,10 +1,10 @@
 ---
-frontend_public_ip: "54.255.250.253"
-nodejs_public_ip: "52.221.247.240"
-redis1_private_ip: "10.0.2.246"
-redis2_private_ip: "10.0.2.227"
-redis3_private_ip: "10.0.2.106"
-redis4_private_ip: "10.0.3.165"
-redis5_private_ip: "10.0.3.90"
-redis6_private_ip: "10.0.3.154"
+frontend_public_ip: "13.212.177.153"
+nodejs_public_ip: "54.169.106.111"
+redis1_private_ip: "10.0.2.204"
+redis2_private_ip: "10.0.2.25"
+redis3_private_ip: "10.0.2.79"
+redis4_private_ip: "10.0.3.194"
+redis5_private_ip: "10.0.3.97"
+redis6_private_ip: "10.0.3.170"
 backend_port: 5000
