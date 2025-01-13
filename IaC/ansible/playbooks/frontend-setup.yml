@@ -121,16 +121,18 @@
           Type=simple
           User=ubuntu
           WorkingDirectory={{ app_directory }}
-          ExecStart=/usr/local/bin/nodemon start-frontend.js
+          ExecStart=/usr/bin/nodemon start-frontend.js
           Restart=always
           Environment=NODE_ENV=production
+          StandardOutput=journal
+          StandardError=journal
           
           [Install]
           WantedBy=multi-user.target
         mode: '0644'
         owner: root
         group: root
-    
+
     - name: Reload systemd
       systemd:
         daemon_reload: true

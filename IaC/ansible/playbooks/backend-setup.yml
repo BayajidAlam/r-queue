@@ -5,6 +5,13 @@
     app_directory: "/opt/r-queue"
     node_version: "18.x"
     backend_port: "5000"
+    redis1_private_ip: "{{ redis1_private_ip }}"  # Dynamically set via inventory or extra-vars
+    redis2_private_ip: "{{ redis2_private_ip }}"
+    redis3_private_ip: "{{ redis3_private_ip }}"
+    redis4_private_ip: "{{ redis4_private_ip }}"
+    redis5_private_ip: "{{ redis5_private_ip }}"
+    redis6_private_ip: "{{ redis6_private_ip }}"
+    nodejs_public_ip: "{{ nodejs_public_ip }}"  # Dynamically set via inventory or extra-vars
 
   tasks:
     - name: Update apt cache
@@ -87,6 +94,12 @@
         dest: "{{ app_directory }}/server/.env"
         content: |
           REDIS_HOST={{ redis1_private_ip }}
+          REDIS_1={{ redis1_private_ip }}
+          REDIS_2={{ redis2_private_ip }}
+          REDIS_3={{ redis3_private_ip }}
+          REDIS_4={{ redis4_private_ip }}
+          REDIS_5={{ redis5_private_ip }}
+          REDIS_6={{ redis6_private_ip }}
           PORT={{ backend_port }}
           BACKEND_IP_ADDRESS={{ nodejs_public_ip }}
         owner: ubuntu
@@ -137,8 +150,8 @@
           [Service]
           Type=simple
           User=ubuntu
-          WorkingDirectory={{ app_directory }}
-          ExecStart=/usr/bin/nodemon start-backend.js
+          WorkingDirectory={{ app_directory }}/server
+          ExecStart=/usr/bin/npm run dev
           Restart=always
           Environment=NODE_ENV=production
           
