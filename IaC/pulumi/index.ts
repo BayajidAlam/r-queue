@@ -139,25 +139,30 @@ interface SecurityGroupRule {
   cidrBlocks: string[];
 }
 
+// Public Security Group (Frontend & Backend)
 const publicSecurityGroup = new aws.ec2.SecurityGroup("public-secgrp", {
   vpcId: vpc.id,
   description: "Allow inbound traffic for public instances",
   ingress: [
-    { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // SSH
-    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // HTTP
-    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // HTTPS
+    // SSH from anywhere
+    { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] },
+    // Frontend React app
     {
       protocol: "tcp",
       fromPort: 5173,
       toPort: 5173,
       cidrBlocks: ["0.0.0.0/0"],
-    }, // React app
+    },
+    // Backend API
     {
       protocol: "tcp",
       fromPort: 5000,
       toPort: 5000,
       cidrBlocks: ["0.0.0.0/0"],
-    }, // Backend
+    },
+    // Add these rules
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // HTTP
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // HTTPS
   ],
   egress: [
     { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] },
@@ -167,15 +172,23 @@ const publicSecurityGroup = new aws.ec2.SecurityGroup("public-secgrp", {
   },
 });
 
+// Redis Security Group
 const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
   vpcId: vpc.id,
   description: "Allow Redis cluster traffic",
   ingress: [
-    // SSH access from bastion (frontend)
+    // SSH from public subnet (bastion access)
     {
       protocol: "tcp",
       fromPort: 22,
       toPort: 22,
+      securityGroups: [publicSecurityGroup.id],
+    },
+    // Redis access from backend
+    {
+      protocol: "tcp",
+      fromPort: 6379,
+      toPort: 6379,
       securityGroups: [publicSecurityGroup.id],
     },
     // Redis cluster communication
@@ -191,17 +204,29 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
       toPort: 16379,
       cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"],
     },
-    // Redis access from backend
+    // Redis access from backend - Port range issue
     {
       protocol: "tcp",
       fromPort: 6379,
       toPort: 6379,
-      securityGroups: [publicSecurityGroup.id], // Since backend is in public security group
+      securityGroups: [publicSecurityGroup.id],
+    },
+    // Missing bus ports for Redis cluster
+    {
+      protocol: "tcp",
+      fromPort: 10000, // Add this for Redis cluster bus
+      toPort: 20000, // Redis cluster bus port range
+      cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"],
     },
   ],
   egress: [
     { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] },
   ],
+  tags: {
+    Name: "redis-secgrp",
+    Environment: "Development",
+    Project: "RedisSetup",
+  },
 });
 
 export const publicSecurityGroupId = publicSecurityGroup.id;
@@ -257,7 +282,7 @@ const createRedisInstance = (
   subnetId: pulumi.Input<string>
 ): aws.ec2.Instance => {
   return new aws.ec2.Instance(name, {
-    instanceType: "t2.nano",
+    instanceType: "t3.small",
     vpcSecurityGroupIds: [redisSecurityGroup.id],
     ami: amiId,
     subnetId: subnetId,

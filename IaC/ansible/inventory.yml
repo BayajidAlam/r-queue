@@ -12,8 +12,7 @@ all:
     backend:
       hosts:
         nodejs:
-          ansible_host: "{{ nodejs_private_ip }}"
-          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p ubuntu@{{ frontend_public_ip }}"'
+          ansible_host: "{{ nodejs_public_ip }}"
     redis_nodes:
       hosts:
         redis1:
@@ -24,9 +23,13 @@ all:
           ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
         redis3:
           ansible_host: "{{ redis3_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
         redis4:
           ansible_host: "{{ redis4_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
         redis5:
           ansible_host: "{{ redis5_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
         redis6:
           ansible_host: "{{ redis6_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
