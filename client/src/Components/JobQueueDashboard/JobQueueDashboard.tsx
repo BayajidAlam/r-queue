@@ -469,7 +469,6 @@ const JobQueueDashboard: React.FC = () => {
                     </td>
                     <td className="p-3 text-sm text-start">{job.type}</td>
                     <td className="p-3">
-                      //@ts-ignore
                       <Badge variant={getStatusBadgeVariant(job.status)}>
                         {job.status}
                       </Badge>

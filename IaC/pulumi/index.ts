@@ -177,7 +177,7 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
   vpcId: vpc.id,
   description: "Allow Redis cluster traffic",
   ingress: [
-    // SSH from public subnet (bastion access)
+    // SSH access from public subnet
     {
       protocol: "tcp",
       fromPort: 22,
@@ -191,7 +191,7 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
       toPort: 6379,
       securityGroups: [publicSecurityGroup.id],
     },
-    // Redis cluster communication
+    // Cluster communication
     {
       protocol: "tcp",
       fromPort: 6379,
@@ -204,19 +204,19 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
       toPort: 16379,
       cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"],
     },
-    // Redis access from backend - Port range issue
+    // Bus ports
     {
       protocol: "tcp",
-      fromPort: 6379,
-      toPort: 6379,
-      securityGroups: [publicSecurityGroup.id],
-    },
-    // Missing bus ports for Redis cluster
-    {
-      protocol: "tcp",
-      fromPort: 10000, // Add this for Redis cluster bus
-      toPort: 20000, // Redis cluster bus port range
+      fromPort: 10000,
+      toPort: 20000,
       cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"],
+    },
+    // Add explicit cluster discovery ports
+    {
+      protocol: "tcp",
+      fromPort: 16379,
+      toPort: 16379,
+      securityGroups: [publicSecurityGroup.id], // Allow cluster discovery from backend
     },
   ],
   egress: [

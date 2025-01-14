@@ -5,13 +5,13 @@
     app_directory: "/opt/r-queue"
     node_version: "18.x"
     backend_port: "5000"
-    redis1_private_ip: "{{ redis1_private_ip }}"  # Dynamically set via inventory or extra-vars
+    redis1_private_ip: "{{ redis1_private_ip }}"  
     redis2_private_ip: "{{ redis2_private_ip }}"
     redis3_private_ip: "{{ redis3_private_ip }}"
     redis4_private_ip: "{{ redis4_private_ip }}"
     redis5_private_ip: "{{ redis5_private_ip }}"
     redis6_private_ip: "{{ redis6_private_ip }}"
-    nodejs_public_ip: "{{ nodejs_public_ip }}"  # Dynamically set via inventory or extra-vars
+    nodejs_public_ip: "{{ nodejs_public_ip }}"  
 
   tasks:
     - name: Update apt cache
