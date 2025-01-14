@@ -171,26 +171,14 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
   vpcId: vpc.id,
   description: "Allow Redis cluster traffic",
   ingress: [
-    {
-      protocol: "tcp",
-      fromPort: 22,
-      toPort: 22,
-      cidrBlocks: ["10.0.1.0/24"],
-    },
-    {
-      protocol: "tcp",
-      fromPort: 16379,
-      toPort: 16379,
-      securityGroups: [publicSecurityGroup.id],
-    },
-    // Allow SSH from public security group (bastion host)
+    // SSH access from bastion (frontend)
     {
       protocol: "tcp",
       fromPort: 22,
       toPort: 22,
       securityGroups: [publicSecurityGroup.id],
     },
-    // Allow Redis ports between cluster nodes
+    // Redis cluster communication
     {
       protocol: "tcp",
       fromPort: 6379,
@@ -203,11 +191,12 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
       toPort: 16379,
       cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"],
     },
+    // Redis access from backend
     {
       protocol: "tcp",
       fromPort: 6379,
       toPort: 6379,
-      securityGroups: [publicSecurityGroup.id],
+      securityGroups: [publicSecurityGroup.id], // Since backend is in public security group
     },
   ],
   egress: [
