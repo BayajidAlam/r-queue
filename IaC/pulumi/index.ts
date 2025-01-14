@@ -203,6 +203,12 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
       toPort: 16379,
       cidrBlocks: ["10.0.2.0/24", "10.0.3.0/24"],
     },
+    {
+      protocol: "tcp",
+      fromPort: 6379,
+      toPort: 6379,
+      securityGroups: [publicSecurityGroup.id],
+    },
   ],
   egress: [
     { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] },
