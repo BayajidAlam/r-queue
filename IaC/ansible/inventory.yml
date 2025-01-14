@@ -18,9 +18,10 @@ all:
       hosts:
         redis1:
           ansible_host: "{{ redis1_private_ip }}"
-          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -W %h:%p ubuntu@{{ frontend_public_ip }}"'
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
         redis2:
           ansible_host: "{{ redis2_private_ip }}"
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -i ../pulumi/MyKeyPair.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ubuntu@{{ frontend_public_ip }}"'
         redis3:
           ansible_host: "{{ redis3_private_ip }}"
         redis4:
