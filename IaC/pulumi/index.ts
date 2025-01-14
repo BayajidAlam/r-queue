@@ -1,5 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import * as fs from "fs";
+import * as path from "path";
 
 // Create a VPC
 const vpc = new aws.ec2.Vpc("redis-vpc", {
@@ -142,12 +144,6 @@ const publicSecurityGroup = new aws.ec2.SecurityGroup("public-secgrp", {
   description: "Allow inbound traffic for public instances",
   ingress: [
     { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // SSH
-    {
-      protocol: "tcp",
-      fromPort: 3000,
-      toPort: 3000,
-      cidrBlocks: ["0.0.0.0/0"],
-    }, // Node.js
     { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // HTTP
     { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // HTTPS
     {
@@ -175,21 +171,25 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis-secgrp", {
   vpcId: vpc.id,
   description: "Allow Redis cluster traffic",
   ingress: [
-    // Allow Redis port from public subnet (for bastion access)
     {
       protocol: "tcp",
-      fromPort: 6379,
-      toPort: 6379,
+      fromPort: 22,
+      toPort: 22,
       cidrBlocks: ["10.0.1.0/24"],
     },
     {
       protocol: "tcp",
       fromPort: 16379,
       toPort: 16379,
-      cidrBlocks: ["10.0.1.0/24"],
+      securityGroups: [publicSecurityGroup.id],
     },
-    // Allow SSH from public subnet
-    { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["10.0.1.0/24"] },
+    // Allow SSH from public security group (bastion host)
+    {
+      protocol: "tcp",
+      fromPort: 22,
+      toPort: 22,
+      securityGroups: [publicSecurityGroup.id],
+    },
     // Allow Redis ports between cluster nodes
     {
       protocol: "tcp",
@@ -319,9 +319,6 @@ export const redisInstance5Id = redisInstance5.id;
 export const redisInstance5PrivateIp = redisInstance5.privateIp;
 export const redisInstance6Id = redisInstance6.id;
 export const redisInstance6PrivateIp = redisInstance6.privateIp;
-
-import * as fs from "fs";
-import * as path from "path";
 
 // Create ansible vars directory if it doesn't exist
 const ansibleVarsPath = path.join(__dirname, "..", "ansible");
